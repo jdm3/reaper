@@ -123,20 +123,26 @@ namespace reaper
             // Query for all processes matching the specified name
             var dotPrinted = false;
             using (var searcher = new ManagementObjectSearcher($"SELECT ProcessId,CreationDate,CommandLine FROM Win32_Process WHERE Name='{processName}'")) {
+                var roundTicks = TimeSpan.FromMilliseconds(10.0).Ticks;
+
                 while (true) {
                     var now = DateTime.Now;
+                    var waitTicks = lifespan.Ticks;
                     var first = true;
                     foreach (var item in searcher.Get()) {
 
-                        // Get the curren tage of the process
+                        // Get the current age of the process
                         var start = ManagementDateTimeConverter.ToDateTime(item["CreationDate"].ToString());
                         var age = now - start;
-                        var old = age >= lifespan;
+                        var leftTicks = lifespan.Ticks - age.Ticks;
 
                         // Kill the process if it is too old
-                        if (old) {
+                        if (leftTicks < 0) {
                             Kill(Convert.ToInt32(item["ProcessID"]));
                             count++;
+                        } else {
+                            leftTicks = ((leftTicks + roundTicks - 1) / roundTicks) * roundTicks;
+                            waitTicks = Math.Min(waitTicks, leftTicks);
                         }
 
                         // Print the process info
@@ -149,7 +155,7 @@ namespace reaper
                             CConsole.WriteLine(CConsole.Blue, $"{now}");
                         }
 
-                        CConsole.WriteLine(old ? CConsole.Red : CConsole.Gray, $"{age} {item["CommandLine"]}");
+                        CConsole.WriteLine(leftTicks < 0 ? CConsole.Red : CConsole.Gray, $"{age} {item["CommandLine"]}");
                     }
 
                     // Exit if we're not waiting (or ctrl-c since last iteration)
@@ -165,7 +171,7 @@ namespace reaper
 
                     // Sleep for one lifespan
                     lock (obj_) {
-                        Monitor.Wait(obj_, lifespan);
+                        Monitor.Wait(obj_, new TimeSpan(waitTicks));
                     }
                 }
             }
