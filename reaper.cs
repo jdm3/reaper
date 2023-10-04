@@ -56,6 +56,25 @@ namespace reaper
             return false;
         }
 
+        static bool HasArgPrefix(string arg, out int startIdx)
+        {
+            startIdx = 1;
+
+            if (arg.Length > 0) {
+                switch (arg[0]) {
+                case '-':
+                    if (arg.Length > 1 && arg[1] == '-') {
+                        startIdx = 2;
+                    }
+                    return true;
+                case '/':
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         static int Main(string[] args)
         {
             // Pick console colors
@@ -72,15 +91,15 @@ namespace reaper
             for (int i = 0; i < args.Length; ++i) {
                 var arg = args[i];
 
-                if (arg.StartsWith("--")) {
-                    if (string.Compare(arg, 2, "wait", 0, 4, false) == 0) {
+                if (HasArgPrefix(arg, out var startIdx)) {
+                    if (string.Compare(arg, startIdx, "wait", 0, 4, false) == 0) {
                         wait_ = true;
                         continue;
                     }
 
-                    if (string.Compare(arg, 2, "help", 0, 4, false) == 0 ||
-                        string.Compare(arg, 2, "h", 0, 1, false) == 0 ||
-                        arg == "?") {
+                    if (string.Compare(arg, startIdx, "help", 0, 4, false) == 0 ||
+                        string.Compare(arg, startIdx, "h", 0, 1, false) == 0 ||
+                        string.Compare(arg, startIdx, "?", 0, 1, false) == 0) {
                         PrintUsage(null, 0);
                     }
                 } else {
